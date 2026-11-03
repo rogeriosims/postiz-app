@@ -1839,3 +1839,42 @@ model Announcement {
   color       AnnouncementColor @default(INFO)
   createdAt   DateTime          @default(now())
 }
+
+model DripSequence {
+  id          String             @id @default(uuid())
+  name        String
+  items       DripSequenceItem[]
+  subscribers DripSubscriber[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+}
+
+model DripSequenceItem {
+  id         String         @id @default(uuid())
+  sequenceId String
+  sequence   DripSequence   @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+  day        Int
+  content    String
+  media      String?
+  deliveries DripDelivery[]
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+}
+
+model DripSubscriber {
+  id         String         @id @default(uuid())
+  chatId     String
+  sequenceId String
+  sequence   DripSequence   @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+  enrolledAt DateTime       @default(now())
+  deliveries DripDelivery[]
+}
+
+model DripDelivery {
+  id           String           @id @default(uuid())
+  subscriberId String
+  subscriber   DripSubscriber   @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
+  itemId       String
+  item         DripSequenceItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  deliveredAt  DateTime         @default(now())
+}
