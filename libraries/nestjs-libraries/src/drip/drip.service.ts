@@ -12,6 +12,45 @@ export class DripService {
     private readonly temporalService: TemporalService
   ) {}
 
+  async getSequences() {
+    return this.prisma.dripSequence.findMany({
+      include: {
+        items: true,
+        subscribers: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
+
+  async getSequence(id: string) {
+    const sequence = await this.prisma.dripSequence.findUnique({
+      where: { id },
+      include: {
+        items: {
+          orderBy: {
+            day: 'asc',
+          },
+        },
+        subscribers: true,
+      },
+    });
+
+    if (!sequence) {
+      throw new NotFoundException(`Sequence with ID ${id} not found`);
+    }
+
+    return sequence;
+  }
+
+  async getSequenceItems(sequenceId: string) {
+    return this.prisma.dripSequenceItem.findMany({
+      where: { sequenceId },
+      orderBy: { day: 'asc' },
+    });
+  }
+
   async createSequence(createSequenceDto: CreateSequenceDto) {
     return this.prisma.dripSequence.create({
       data: {

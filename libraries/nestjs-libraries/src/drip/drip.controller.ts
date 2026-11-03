@@ -6,9 +6,30 @@ import { AddSequenceItemDto } from './dtos/add-sequence-item.dto';
 import { EnrollSubscriberDto } from './dtos/enroll-subscriber.dto';
 
 @ApiTags('Drip')
-@Controller('api/drip')
+@Controller('drip')
 export class DripController {
   constructor(private readonly dripService: DripService) {}
+
+  @Get('sequences')
+  @ApiOperation({ summary: 'Get all drip sequences' })
+  @ApiResponse({ status: 200, description: 'List of all drip sequences.' })
+  async getSequences() {
+    return this.dripService.getSequences();
+  }
+
+  @Get('sequences/:id')
+  @ApiOperation({ summary: 'Get sequence details' })
+  @ApiResponse({ status: 200, description: 'The sequence details.' })
+  async getSequence(@Param('id') sequenceId: string) {
+    return this.dripService.getSequence(sequenceId);
+  }
+
+  @Get('sequences/:id/items')
+  @ApiOperation({ summary: 'Get all items for a sequence' })
+  @ApiResponse({ status: 200, description: 'List of sequence items.' })
+  async getSequenceItems(@Param('id') sequenceId: string) {
+    return this.dripService.getSequenceItems(sequenceId);
+  }
 
   @Post('sequences')
   @ApiOperation({ summary: 'Create a new drip sequence' })
