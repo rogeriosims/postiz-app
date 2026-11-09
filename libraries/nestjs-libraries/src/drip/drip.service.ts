@@ -68,12 +68,71 @@ export class DripService {
       throw new NotFoundException(`Sequence with ID ${sequenceId} not found`);
     }
 
+    const content = addSequenceItemDto.content ?? addSequenceItemDto.message ?? '';
+    const media = addSequenceItemDto.media ?? addSequenceItemDto.mediaUrl ?? null;
+    const hasSpoiler = addSequenceItemDto.hasSpoiler !== undefined ? !!addSequenceItemDto.hasSpoiler : false;
+    const protectContent = addSequenceItemDto.protectContent !== undefined ? !!addSequenceItemDto.protectContent : true;
+    const buttonText = addSequenceItemDto.buttonText ?? null;
+    const buttonUrl = addSequenceItemDto.buttonUrl ?? null;
+
+    if (addSequenceItemDto.id) {
+      const existing = await this.prisma.dripSequenceItem.findFirst({
+        where: { id: addSequenceItemDto.id, sequenceId },
+      });
+      if (existing) {
+        return this.prisma.dripSequenceItem.update({
+          where: { id: addSequenceItemDto.id },
+          data: {
+            day: addSequenceItemDto.day,
+            content,
+            media,
+            hasSpoiler,
+            protectContent,
+            buttonText,
+            buttonUrl,
+          },
+        });
+      }
+    }
+
     return this.prisma.dripSequenceItem.create({
       data: {
         sequenceId,
         day: addSequenceItemDto.day,
-        content: addSequenceItemDto.content,
-        media: addSequenceItemDto.media,
+        content,
+        media,
+        hasSpoiler,
+        protectContent,
+        buttonText,
+        buttonUrl,
+      },
+    });
+  }
+
+  async deleteSequenceItem(sequenceId: string, itemId: string) {
+    return this.prisma.dripSequenceItem.deleteMany({
+      where: {
+        id: itemId,
+        sequenceId,
+      },
+    });
+  }
+
+  async getSubscribers(sequenceId?: string) {
+    return this.prisma.dripSubscriber.findMany({
+      where: sequenceId ? { sequenceId } : undefined,
+      include: {
+        deliveries: {
+          include: {
+            item: true,
+          },
+          orderBy: {
+            deliveredAt: 'desc',
+          },
+        },
+      },
+      orderBy: {
+        enrolledAt: 'desc',
       },
     });
   }
@@ -90,9 +149,14 @@ export class DripService {
       throw new NotFoundException(`Sequence with ID ${enrollSubscriberDto.sequenceId} not found`);
     }
 
+    const chatId = enrollSubscriberDto.chatId || enrollSubscriberDto.email;
+    if (!chatId) {
+      throw new NotFoundException('Chat ID is required to enroll subscriber');
+    }
+
     const subscriber = await this.prisma.dripSubscriber.create({
       data: {
-        chatId: enrollSubscriberDto.chatId,
+        chatId,
         sequenceId: enrollSubscriberDto.sequenceId,
       },
     });

@@ -3,6 +3,8 @@
 import { FC, useState, useEffect } from 'react';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { Button } from '@gitroom/react/form/button';
+import { Checkbox } from '@gitroom/react/form/checkbox';
+import { Input } from '@gitroom/react/form/input';
 
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import Link from 'next/link';
@@ -16,6 +18,10 @@ interface DripItem {
   day: number;
   message: string;
   mediaUrl?: string;
+  hasSpoiler?: boolean;
+  protectContent?: boolean;
+  buttonText?: string;
+  buttonUrl?: string;
   isDeleted?: boolean;
 }
 
@@ -30,25 +36,33 @@ export const DripEditorComponent: FC<DripEditorProps> = ({ id }) => {
   const t = useT();
 
   useEffect(() => {
-    loadSequence();
-    loadSubscribers();
+    if (id) {
+      loadSequence();
+      loadSubscribers();
+    }
   }, [id]);
 
   const loadSequence = async () => {
+    if (!id) return;
     try {
-      const response = await fetch(`/drip/sequences`);
+      const response = await fetch(`/drip/sequences/${id}`);
       if (response.ok) {
-        const sequences = await response.json();
-        const seq = sequences.find((s: any) => s.id === id);
-        if (seq) {
-          setSequence(seq);
-          
-          // Assuming sequence has items or we need to load them separately
-          // For now, load items if available, or just mock loading
-          const itemsRes = await fetch(`/drip/sequences/${id}/items`).catch(() => null);
-          if (itemsRes && itemsRes.ok) {
-            setItems(await itemsRes.json());
-          }
+        const seq = await response.json();
+        setSequence(seq);
+
+        if (seq.items && Array.isArray(seq.items)) {
+          setItems(
+            seq.items.map((item: any) => ({
+              id: item.id,
+              day: item.day,
+              message: item.content || item.message || '',
+              mediaUrl: item.media || item.mediaUrl || '',
+              hasSpoiler: item.hasSpoiler ?? false,
+              protectContent: item.protectContent ?? true,
+              buttonText: item.buttonText || '',
+              buttonUrl: item.buttonUrl || '',
+            }))
+          );
         }
       }
     } catch (err) {
@@ -57,25 +71,12 @@ export const DripEditorComponent: FC<DripEditorProps> = ({ id }) => {
   };
 
   const loadSubscribers = async () => {
+    if (!id) return;
     try {
-      const response = await fetch(`/drip/subscribers?sequenceId=${id}`).catch(() => null);
+      const response = await fetch(`/drip/subscribers?sequenceId=${id}`);
       if (response && response.ok) {
         const subs = await response.json();
-        
-        // Fetch deliveries for each subscriber to get their audit trail
-        const subsWithDeliveries = await Promise.all(subs.map(async (sub: any) => {
-          if (sub.id) {
-            const delRes = await fetch(`/drip/subscribers/${sub.id}/deliveries`).catch(() => null);
-            if (delRes && delRes.ok) {
-              sub.deliveries = await delRes.json();
-            } else {
-              sub.deliveries = [];
-            }
-          }
-          return sub;
-        }));
-        
-        setSubscribers(subsWithDeliveries);
+        setSubscribers(Array.isArray(subs) ? subs : []);
       }
     } catch (err) {
       console.error('Failed to load subscribers', err);
@@ -84,7 +85,17 @@ export const DripEditorComponent: FC<DripEditorProps> = ({ id }) => {
 
   const addItem = () => {
     const maxDay = items.reduce((max, item) => Math.max(max, item.day), 0);
-    setItems([...items, { day: maxDay + 1, message: '' }]);
+    setItems([
+      ...items,
+      {
+        day: maxDay + 1,
+        message: '',
+        hasSpoiler: false,
+        protectContent: true,
+        buttonText: '',
+        buttonUrl: '',
+      },
+    ]);
   };
 
   const updateItem = (index: number, field: keyof DripItem, value: any) => {
@@ -100,17 +111,18 @@ export const DripEditorComponent: FC<DripEditorProps> = ({ id }) => {
   };
 
   const saveSequence = async () => {
+    if (!id) return;
     try {
       const currentRes = await fetch(`/drip/sequences/${id}/items`).catch(() => null);
-      let currentItems = [];
+      let currentItems: any[] = [];
       if (currentRes && currentRes.ok) {
         currentItems = await currentRes.json();
       }
-      
+
       const currentIds = currentItems.map((i: any) => i.id).filter(Boolean);
       const activeIds = items.map((i) => i.id).filter(Boolean);
       const toDelete = currentIds.filter((cid: string) => !activeIds.includes(cid));
-      
+
       for (const delId of toDelete) {
         await fetch(`/drip/sequences/${id}/items/${delId}`, { method: 'DELETE' });
       }
@@ -118,7 +130,17 @@ export const DripEditorComponent: FC<DripEditorProps> = ({ id }) => {
       for (const item of items) {
         await fetch(`/drip/sequences/${id}/items`, {
           method: 'POST',
-          body: JSON.stringify(item)
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: item.id,
+            day: item.day,
+            content: item.message,
+            media: item.mediaUrl || undefined,
+            hasSpoiler: !!item.hasSpoiler,
+            protectContent: item.protectContent !== undefined ? !!item.protectContent : true,
+            buttonText: item.buttonText || undefined,
+            buttonUrl: item.buttonUrl || undefined,
+          })
         });
       }
       alert(t('saved_successfully', 'Saved successfully'));
@@ -129,11 +151,12 @@ export const DripEditorComponent: FC<DripEditorProps> = ({ id }) => {
   };
 
   const enrollSubscriber = async () => {
-    if (!newSubscriber.trim()) return;
+    if (!newSubscriber.trim() || !id) return;
     try {
       const response = await fetch(`/drip/subscribers`, {
         method: 'POST',
-        body: JSON.stringify({ sequenceId: id, email: newSubscriber })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sequenceId: id, chatId: newSubscriber.trim() })
       });
       if (response.ok) {
         setNewSubscriber('');
@@ -200,13 +223,53 @@ export const DripEditorComponent: FC<DripEditorProps> = ({ id }) => {
                 
                 <div className="flex flex-col gap-2">
                   <label className="text-sm font-medium">Media URL (Optional)</label>
-                  <input 
+                  <input
                     className="bg-transparent border border-tableBorder rounded-[4px] px-[15px] py-[10px] w-full text-textColor focus:outline-none focus:border-btnPrimary"
                     name={`media-${index}`}
                     value={item.mediaUrl || ''}
                     onChange={(e) => updateItem(index, 'mediaUrl', e.target.value)}
                     placeholder="https://..."
                   />
+                </div>
+
+                <div className="flex flex-wrap gap-[20px] items-center pt-[5px]">
+                  <Checkbox
+                    disableForm={true}
+                    variant="hollow"
+                    label={t('drip_protect_content', 'Protect Content (anti-leak / no copy / no forward)')}
+                    checked={item.protectContent !== false}
+                    onChange={(e) => updateItem(index, 'protectContent', e.target.value)}
+                  />
+                  <Checkbox
+                    disableForm={true}
+                    variant="hollow"
+                    label={t('drip_has_spoiler', 'Spoiler Effect (blur on photo/video)')}
+                    checked={!!item.hasSpoiler}
+                    onChange={(e) => updateItem(index, 'hasSpoiler', e.target.value)}
+                  />
+                </div>
+
+                <div className="flex flex-col md:flex-row gap-[10px] items-center">
+                  <div className="flex-1 w-full">
+                    <Input
+                      disableForm={true}
+                      name={`btn-text-${index}`}
+                      label={t('drip_button_text', 'Inline Button Text (Optional)')}
+                      placeholder={t('drip_button_text_placeholder', 'e.g. 💎 VIP Access / Checkout')}
+                      value={item.buttonText || ''}
+                      onChange={(e) => updateItem(index, 'buttonText', e.target.value)}
+                    />
+                  </div>
+                  <div className="flex-1 w-full">
+                    <Input
+                      disableForm={true}
+                      name={`btn-url-${index}`}
+                      label={t('drip_button_url', 'Button URL (Optional)')}
+                      placeholder="https://t.me/..."
+                      value={item.buttonUrl || ''}
+                      onChange={(e) => updateItem(index, 'buttonUrl', e.target.value)}
+                    />
+                  </div>
                 </div>
               </div>
             ))}
@@ -255,14 +318,14 @@ export const DripEditorComponent: FC<DripEditorProps> = ({ id }) => {
                   <tr key={sub.id || idx}>
                     <td className="p-[10px] border-b border-tableBorder font-medium">
                       <div className="flex flex-col">
-                        <span>{sub.email || sub.identifier || 'Unknown'}</span>
+                        <span>{sub.chatId || sub.email || sub.identifier || 'Unknown'}</span>
                         {sub.deliveries && sub.deliveries.length > 0 && (
                           <div className="mt-2 text-xs text-textColor/70">
                             <strong>Deliveries:</strong>
                             <ul className="list-disc ml-4">
                               {sub.deliveries.map((del: any, i: number) => (
                                 <li key={del.id || i}>
-                                  Day {del.day} ({del.status}) - {new Date(del.deliveredAt || del.createdAt).toLocaleString()}
+                                  Day {del.item?.day ?? del.day ?? 'N/A'} ({del.status}) - {new Date(del.deliveredAt || del.createdAt).toLocaleString()}
                                 </li>
                               ))}
                             </ul>
@@ -271,7 +334,9 @@ export const DripEditorComponent: FC<DripEditorProps> = ({ id }) => {
                       </div>
                     </td>
                     <td className="p-[10px] border-b border-tableBorder text-textColor align-top">
-                      {sub.createdAt ? new Date(sub.createdAt).toLocaleString() : 'N/A'}
+                      {sub.enrolledAt
+                        ? new Date(sub.enrolledAt).toLocaleString()
+                        : (sub.createdAt ? new Date(sub.createdAt).toLocaleString() : 'N/A')}
                     </td>
                     <td className="p-[10px] border-b border-tableBorder align-top">
                       <span className="bg-btnPrimary text-white px-[8px] py-[2px] rounded-full text-xs">Active</span>

@@ -1850,15 +1850,19 @@ model DripSequence {
 }
 
 model DripSequenceItem {
-  id         String         @id @default(uuid())
-  sequenceId String
-  sequence   DripSequence   @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
-  day        Int
-  content    String
-  media      String?
-  deliveries DripDelivery[]
-  createdAt  DateTime       @default(now())
-  updatedAt  DateTime       @updatedAt
+  id             String         @id @default(uuid())
+  sequenceId     String
+  sequence       DripSequence   @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+  day            Int
+  content        String
+  media          String?
+  hasSpoiler     Boolean        @default(false)
+  protectContent Boolean        @default(true)
+  buttonText     String?
+  buttonUrl      String?
+  deliveries     DripDelivery[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 }
 
 model DripSubscriber {

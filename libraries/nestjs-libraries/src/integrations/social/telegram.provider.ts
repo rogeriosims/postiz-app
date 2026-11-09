@@ -15,6 +15,7 @@ import mime from 'mime';
 import TelegramBot from 'node-telegram-bot-api';
 import { Integration } from '@prisma/client';
 import striptags from 'striptags';
+import { TelegramDto } from '@gitroom/nestjs-libraries/dtos/posts/providers-settings/telegram.dto';
 
 const telegramBot = new TelegramBot(process.env.TELEGRAM_TOKEN!);
 // Added to support local storage posting
@@ -29,6 +30,7 @@ export class TelegramProvider extends SocialAbstract implements SocialProvider {
   isWeb3 = true;
   scopes = [] as string[];
   editor = 'html' as const;
+  dto = TelegramDto;
   maxLength() {
     return 4096;
   }
@@ -223,11 +225,36 @@ export class TelegramProvider extends SocialAbstract implements SocialProvider {
       .replace(/<p>(.*?)<\/p>/g, '$1\n');
 
     const processedMedia = this.processMedia(mediaFiles);
+    const settings = message.settings || {};
+    const protectContent = settings.protect_content !== undefined ? !!settings.protect_content : true;
+    const hasSpoiler = !!settings.has_spoiler;
+
+    let replyMarkup: any = undefined;
+    if (settings.button_text && settings.button_url) {
+      replyMarkup = {
+        inline_keyboard: [
+          [
+            {
+              text: settings.button_text,
+              url: settings.button_url,
+            },
+          ],
+        ],
+      };
+    } else if (Array.isArray(settings.buttons) && settings.buttons.length > 0) {
+      replyMarkup = {
+        inline_keyboard: settings.buttons.map((b: any) => [
+          { text: b.text, url: b.url },
+        ]),
+      };
+    }
 
     // if there's no media, bot sends a text message only
     if (processedMedia.length === 0) {
       const response = await telegramBot.sendMessage(accessToken, text, {
         parse_mode: 'HTML',
+        protect_content: protectContent,
+        ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
         ...(replyToMessageId ? { reply_to_message_id: replyToMessageId } : {}),
       });
       messageId = response.message_id;
@@ -238,6 +265,9 @@ export class TelegramProvider extends SocialAbstract implements SocialProvider {
       const options = {
         caption: text,
         parse_mode: 'HTML' as const,
+        protect_content: protectContent,
+        has_spoiler: hasSpoiler,
+        ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
         ...(replyToMessageId ? { reply_to_message_id: replyToMessageId } : {}),
       };
       const response =
@@ -272,12 +302,14 @@ export class TelegramProvider extends SocialAbstract implements SocialProvider {
           media: m.media,
           caption: i === 0 && index === 0 ? text : undefined,
           parse_mode: 'HTML',
+          has_spoiler: hasSpoiler,
         }));
 
         const response = await telegramBot.sendMediaGroup(
           accessToken,
           mediaGroup as any[],
           {
+            protect_content: protectContent,
             ...(replyToMessageId && i === 0
               ? { reply_to_message_id: replyToMessageId }
               : {}),

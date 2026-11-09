@@ -1,5 +1,5 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { Body, Controller, Delete, Get, Param, Post, Query } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { DripService } from './drip.service';
 import { CreateSequenceDto } from './dtos/create-sequence.dto';
 import { AddSequenceItemDto } from './dtos/add-sequence-item.dto';
@@ -46,6 +46,24 @@ export class DripController {
     @Body() addSequenceItemDto: AddSequenceItemDto,
   ) {
     return this.dripService.addSequenceItem(sequenceId, addSequenceItemDto);
+  }
+
+  @Delete('sequences/:id/items/:itemId')
+  @ApiOperation({ summary: 'Delete a sequence item' })
+  @ApiResponse({ status: 200, description: 'The sequence item has been deleted.' })
+  async deleteSequenceItem(
+    @Param('id') sequenceId: string,
+    @Param('itemId') itemId: string,
+  ) {
+    return this.dripService.deleteSequenceItem(sequenceId, itemId);
+  }
+
+  @Get('subscribers')
+  @ApiOperation({ summary: 'Get subscribers, optionally filtered by sequenceId' })
+  @ApiQuery({ name: 'sequenceId', required: false, type: String })
+  @ApiResponse({ status: 200, description: 'List of subscribers.' })
+  async getSubscribers(@Query('sequenceId') sequenceId?: string) {
+    return this.dripService.getSubscribers(sequenceId);
   }
 
   @Post('subscribers')

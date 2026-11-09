@@ -1,11 +1,16 @@
-import { IsString, IsNotEmpty } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class EnrollSubscriberDto {
-  @ApiProperty({ description: 'Chat ID of the subscriber' })
+  @ApiPropertyOptional({ description: 'Chat ID of the subscriber' })
   @IsString()
-  @IsNotEmpty()
-  chatId: string;
+  @IsOptional()
+  chatId?: string;
+
+  @ApiPropertyOptional({ description: 'Email/Identifier alias for chatId' })
+  @IsString()
+  @IsOptional()
+  email?: string;
 
   @ApiProperty({ description: 'ID of the sequence to enroll in' })
   @IsString()

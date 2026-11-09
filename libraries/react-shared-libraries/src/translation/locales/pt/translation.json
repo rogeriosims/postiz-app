@@ -904,5 +904,15 @@
   "drip_content": "Drip Content",
   "add_day": "Adicionar Dia",
   "subscribers": "Assinantes",
-  "audit": "Auditoria de Entregas"
+  "audit": "Auditoria de Entregas",
+  "telegram_protect_content": "Proteger Conteúdo (anti-cópia / sem encaminhamento)",
+  "telegram_has_spoiler": "Efeito Spoiler (desfoque em fotos e vídeos)",
+  "telegram_button_text": "Texto do Botão Inline (Opcional)",
+  "telegram_button_text_placeholder": "Ex: 💎 Acesso VIP / Assinar",
+  "telegram_button_url": "URL do Botão (Opcional)",
+  "drip_protect_content": "Proteger Conteúdo (anti-cópia / sem encaminhamento)",
+  "drip_has_spoiler": "Efeito Spoiler (desfoque em fotos e vídeos)",
+  "drip_button_text": "Texto do Botão Inline (Opcional)",
+  "drip_button_text_placeholder": "Ex: 💎 Acesso VIP / Renovar Pix",
+  "drip_button_url": "URL do Botão (Opcional)"
 }

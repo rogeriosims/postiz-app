@@ -25,15 +25,52 @@ export class DripActivity {
     }
 
     try {
+      let hasSpoiler = false;
+      let protectContent = true;
+      let replyMarkup: any = undefined;
+
+      if (itemId) {
+        const item = await this.prisma.dripSequenceItem.findUnique({
+          where: { id: itemId },
+        });
+        if (item) {
+          hasSpoiler = (item as any).hasSpoiler ?? false;
+          protectContent = (item as any).protectContent ?? true;
+          if ((item as any).buttonText && (item as any).buttonUrl) {
+            replyMarkup = {
+              inline_keyboard: [
+                [
+                  {
+                    text: (item as any).buttonText,
+                    url: (item as any).buttonUrl,
+                  },
+                ],
+              ],
+            };
+          }
+        }
+      }
+
       if (media) {
         const isVideo = media.match(/\.(mp4|webm|mov)$/i);
+        const options: any = {
+          caption: content,
+          parse_mode: 'HTML',
+          protect_content: protectContent,
+          has_spoiler: hasSpoiler,
+          ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
+        };
         if (isVideo) {
-          await this.telegramBot.sendVideo(chatId, media, { caption: content, parse_mode: 'HTML' });
+          await this.telegramBot.sendVideo(chatId, media, options);
         } else {
-          await this.telegramBot.sendPhoto(chatId, media, { caption: content, parse_mode: 'HTML' });
+          await this.telegramBot.sendPhoto(chatId, media, options);
         }
       } else {
-        await this.telegramBot.sendMessage(chatId, content, { parse_mode: 'HTML' });
+        await this.telegramBot.sendMessage(chatId, content, {
+          parse_mode: 'HTML',
+          protect_content: protectContent,
+          ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
+        });
       }
 
       await this.prisma.dripDelivery.create({
