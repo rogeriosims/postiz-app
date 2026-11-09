@@ -256,13 +256,13 @@ export class TelegramProvider extends SocialAbstract implements SocialProvider {
         protect_content: protectContent,
         ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
         ...(replyToMessageId ? { reply_to_message_id: replyToMessageId } : {}),
-      });
+      } as any);
       messageId = response.message_id;
     }
     // if there's only one media, bot sends the media with the text message as caption
     else if (processedMedia.length === 1) {
       const media = processedMedia[0];
-      const options = {
+      const options: any = {
         caption: text,
         parse_mode: 'HTML' as const,
         protect_content: protectContent,
@@ -313,7 +313,7 @@ export class TelegramProvider extends SocialAbstract implements SocialProvider {
             ...(replyToMessageId && i === 0
               ? { reply_to_message_id: replyToMessageId }
               : {}),
-          }
+          } as any
         );
         if (i === 0) {
           messageId = response[0].message_id;
